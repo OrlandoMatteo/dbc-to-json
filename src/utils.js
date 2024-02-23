@@ -1,13 +1,18 @@
-const { snakeCase } = require("snake-case")
-const { titleCase } = require("title-case")
+function snakeCase(str) {
+    return str.replace(/[A-Z]/g, function(match) {
+        return '_' + match.toLowerCase();
+    });
+}
+
+
 
 const splitCanId = (canId) => {
 	let isExtendedFrame = canId > 0xffff
 	let priority, pgn, source
 
-	if(isExtendedFrame) {
-		source   = canId & 0xff
-		pgn      = canId >> 8  & 0xffff
+	if (isExtendedFrame) {
+		source = canId & 0xff
+		pgn = canId >> 8 & 0xffff
 		priority = canId >> 24 & 0xff
 	} else {
 		pgn = canId
@@ -20,18 +25,18 @@ const splitCanId = (canId) => {
 const extractSignalData = (line, labelPrefix, messageName, index) => {
 	let isMultiplexor, multiplexerValue, category, comment
 
-	if(line.length === 9 && line[3] === ":") {
+	if (line.length === 9 && line[3] === ":") {
 		[rawMultiplexer] = line.splice(2, 1)
-		if(rawMultiplexer === "M") {
+		if (rawMultiplexer === "M") {
 			isMultiplexor = true
-		} else if(rawMultiplexer.charAt(0) === "m") {
+		} else if (rawMultiplexer.charAt(0) === "m") {
 			multiplexerValue = parseInt(rawMultiplexer.substr(1))
 		} else {
 			throw new Error(`Can't read multiplexer ${rawMultiplexer}`)
 		}
 	}
 
-	
+
 	// TODO edge cases as warnings (return them as Array)
 	const [startBit, bitLength, littleEndian] = line[3].split(/[^\d]/)
 	const [factor, offset] = line[4].slice(1, -1).split(",")
@@ -39,14 +44,14 @@ const extractSignalData = (line, labelPrefix, messageName, index) => {
 	let isSigned = line[3].endsWith("-")
 
 	// Categorizes signals based on source device. If source device has a default value, use the BO_ name
-	if(line[7] !== "Vector__XXX") {
+	if (line[7] !== "Vector__XXX") {
 		category = line[7]
 	} else {
 		category = messageName
 	}
 
 	// Automatically sets signed 1-bit signals to unsigned versions to save headaches in business logic later
-	if(bitLength === "1" && isSigned) {
+	if (bitLength === "1" && isSigned) {
 		isSigned = false
 	}
 
@@ -82,7 +87,7 @@ const extractValData = (line) => {
 	let index = 3
 	let value, state
 	const valArray = []
-	while(index !== line.length - 1) {
+	while (index !== line.length - 1) {
 		value = parseInt(line[index])
 		index += 1
 		state = line[index].slice(1, -1)
@@ -102,7 +107,7 @@ const extractValData = (line) => {
 const extractDataTypeData = (line, index) => {
 	let dataType
 
-	switch(line[4].slice(0, -1)) {
+	switch (line[4].slice(0, -1)) {
 		case "0":
 			dataType = "int"
 			break;
@@ -134,7 +139,7 @@ const extractCommentData = (line, index) => {
 	switch (line[1]) {
 		case 'SG_':
 			commentSgLink = line[3]
-			// when there is SG, there is BO case
+		// when there is SG, there is BO case
 		case 'BO_':
 			commentBoLink = parseInt(line[2])
 			comment = line[line.length - 2]
@@ -147,5 +152,11 @@ const extractCommentData = (line, index) => {
 		comment: comment.substr(1, comment.length - 2)
 	}
 }
-
-module.exports = { splitCanId, extractSignalData, extractValData, extractDataTypeData, extractCommentData }
+// BA_ "CI_SigId" SG_ 2566902561 RightWndLift 6285;
+const extractSignalId = (line) => {
+	return {
+		sigBoLink: parseInt(line[3]),
+		signalName: line[4],
+		signalId: parseInt(line[5])
+	}
+}
